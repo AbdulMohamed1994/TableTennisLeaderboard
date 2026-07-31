@@ -318,6 +318,9 @@
     <h3>Waiting on you <span id="incomingBadge" class="badge" style="display:none;"></span></h3>
     <div id="incomingRequests"><div class="empty">No incoming requests.</div></div>
 
+    <h3>Ready to record <span id="readyBadge" class="badge" style="display:none;"></span></h3>
+    <div id="readyRequests"><div class="empty">Nothing to record yet.</div></div>
+
     <h3>Sent by you</h3>
     <div id="outgoingRequests"><div class="empty">No outgoing requests.</div></div>
   </div>
@@ -486,24 +489,47 @@ async function loadHistory() {
 
 const BASE_TITLE = document.title;
 
-function updateRequestNotifications(incomingCount) {
-  const badgeText = incomingCount > 0 ? String(incomingCount) : '';
-  for (const badge of [el('requestBadge'), el('incomingBadge')]) {
-    badge.textContent = badgeText;
-    badge.style.display = incomingCount > 0 ? 'inline-block' : 'none';
-  }
-  document.title = incomingCount > 0 ? `(${incomingCount}) ${BASE_TITLE}` : BASE_TITLE;
+function getDismissedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem('dismissedRequests') || '[]')); } catch { return new Set(); }
+}
+
+function dismissRequest(id) {
+  const ids = getDismissedIds();
+  ids.add(id);
+  localStorage.setItem('dismissedRequests', JSON.stringify([...ids]));
+}
+
+function setBadge(el_, count) {
+  el_.textContent = count > 0 ? String(count) : '';
+  el_.style.display = count > 0 ? 'inline-block' : 'none';
+}
+
+function updateRequestNotifications({ incoming, ready, total }) {
+  setBadge(el('incomingBadge'), incoming);
+  setBadge(el('readyBadge'), ready);
+  setBadge(el('requestBadge'), total);
+  document.title = total > 0 ? `(${total}) ${BASE_TITLE}` : BASE_TITLE;
+}
+
+function goRecordMatch(playerAId, playerBId) {
+  closeMobileRequestPage();
+  el('playerA').value = playerAId;
+  el('playerB').value = playerBId;
+  el('recordCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function loadMatchRequests() {
   if (!currentPlayer) {
-    updateRequestNotifications(0);
+    updateRequestNotifications({ incoming: 0, ready: 0, total: 0 });
     return;
   }
   const requests = await api('/api/match-requests');
+  const dismissed = getDismissedIds();
   const incoming = requests.filter(r => r.status === 'pending' && r.opponent.id === currentPlayer.id);
-  const outgoing = requests.filter(r => r.requester.id === currentPlayer.id && r.status !== 'completed');
-  updateRequestNotifications(incoming.length);
+  const ready = requests.filter(r => r.status === 'accepted' && (r.requester.id === currentPlayer.id || r.opponent.id === currentPlayer.id));
+  const sent = requests.filter(r => r.requester.id === currentPlayer.id && ['pending', 'declined', 'cancelled'].includes(r.status));
+  const undismissedDeclined = sent.filter(r => r.status === 'declined' && !dismissed.has(r.id));
+  updateRequestNotifications({ incoming: incoming.length, ready: ready.length, total: incoming.length + ready.length + undismissedDeclined.length });
 
   const incomingEl = el('incomingRequests');
   incomingEl.innerHTML = incoming.length ? incoming.map(r => `
@@ -516,13 +542,25 @@ async function loadMatchRequests() {
     </div>
   `).join('') : '<div class="empty">No incoming requests.</div>';
 
+  const readyEl = el('readyRequests');
+  readyEl.innerHTML = ready.length ? ready.map(r => {
+    const opponent = r.requester.id === currentPlayer.id ? r.opponent : r.requester;
+    return `
+    <div class="request-row">
+      <span>${escapeHtml(opponent.full_name)} <span class="badge status-accepted">accepted</span></span>
+      <button class="small" data-record-a="${currentPlayer.id}" data-record-b="${opponent.id}">Record result</button>
+    </div>
+  `;
+  }).join('') : '<div class="empty">Nothing to record yet.</div>';
+
   const outgoingEl = el('outgoingRequests');
-  outgoingEl.innerHTML = outgoing.length ? outgoing.map(r => `
+  outgoingEl.innerHTML = sent.length ? sent.map(r => `
     <div class="request-row">
       <span>${escapeHtml(r.opponent.full_name)}
         <span class="badge status-${r.status}">${r.status}</span>
       </span>
       ${r.status === 'pending' ? `<button class="small secondary" data-id="${r.id}" data-action="cancel">Cancel</button>` : ''}
+      ${r.status === 'declined' && !dismissed.has(r.id) ? `<button class="small secondary" data-dismiss="${r.id}">Dismiss</button>` : ''}
     </div>
   `).join('') : '<div class="empty">No outgoing requests.</div>';
 
@@ -538,6 +576,19 @@ async function loadMatchRequests() {
       } catch (e) {
         alert(e.message);
       }
+    });
+  });
+
+  document.querySelectorAll('#requestsCard button[data-dismiss]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dismissRequest(parseInt(btn.dataset.dismiss, 10));
+      loadMatchRequests();
+    });
+  });
+
+  document.querySelectorAll('#requestsCard button[data-record-a]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      goRecordMatch(parseInt(btn.dataset.recordA, 10), parseInt(btn.dataset.recordB, 10));
     });
   });
 }
