@@ -32,6 +32,7 @@
     }
   }
   * { box-sizing: border-box; }
+  html, body { max-width: 100%; overflow-x: hidden; }
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -43,7 +44,7 @@
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
-  .whoami { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; white-space: nowrap; }
+  .whoami { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; flex-wrap: wrap; }
   .greeting-champ { color: var(--accent); font-weight: 700; }
   .greeting-loser { color: var(--muted); }
   .greeting-loser b { color: var(--text); }
@@ -109,10 +110,69 @@
   .muted { color: var(--muted); }
   .empty { color: var(--muted); font-size: 0.9rem; padding: 8px 0; }
   select#weekSelect { max-width: 220px; }
-  .request-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--card-border); }
+  .request-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--card-border); }
   .request-row:last-child { border-bottom: none; }
-  .request-actions { display: flex; gap: 6px; }
+  .request-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .locked-note { color: var(--muted); font-size: 0.9rem; }
+  .table-scroll { overflow-x: auto; }
+
+  @media (max-width: 480px) {
+    .row { flex-direction: column; align-items: stretch; }
+    .row .field { max-width: 100% !important; min-width: 0; }
+    .row > button { width: 100%; }
+  }
+
+  /* Below this width, tables switch from columns to stacked label/value cards
+     so every detail is visible without scrolling the page sideways. */
+  @media (max-width: 640px) {
+    #leaderboardTable thead { display: none; }
+    #leaderboardTable, #leaderboardTable tbody, #leaderboardTable tr, #leaderboardTable td {
+      display: block;
+      width: 100%;
+    }
+    #leaderboardTable tr {
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      padding: 6px 12px;
+    }
+    #leaderboardTable tr:last-child { margin-bottom: 0; }
+    #leaderboardTable td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--card-border);
+      padding: 7px 0;
+    }
+    #leaderboardTable td:last-child { border-bottom: none; }
+    #leaderboardTable td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    #historyTable thead { display: none; }
+    #historyTable, #historyTable tbody { display: block; width: 100%; }
+    #historyTable tr {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 10px;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+    }
+    #historyTable tr:last-child { margin-bottom: 0; }
+    #historyTable td { display: inline-block; width: auto; border-bottom: none; padding: 0; text-align: left !important; }
+    #historyTable td.muted { flex-basis: 100%; margin-bottom: 2px; }
+    #historyTable td:last-child { margin-left: auto; }
+  }
 </style>
 </head>
 <body>
@@ -315,15 +375,15 @@ async function loadLeaderboard() {
   updateChampionGreeting(board);
   tbody.innerHTML = active.map((r, i) => `
     <tr>
-      <td class="rank ${i === 0 ? 'champion' : ''}">${i + 1}</td>
-      <td class="name">${escapeHtml(r.full_name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
-      <td>${r.played}</td>
-      <td>${r.wins}</td>
-      <td>${r.losses}</td>
-      <td>${r.win_pct}%</td>
-      <td>${r.points_scored}</td>
-      <td>${r.avg_points}</td>
-      <td>${r.point_diff > 0 ? '+' : ''}${r.point_diff}</td>
+      <td class="rank ${i === 0 ? 'champion' : ''}" data-label="#">${i + 1}</td>
+      <td class="name" data-label="Player">${escapeHtml(r.full_name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
+      <td data-label="Played">${r.played}</td>
+      <td data-label="W">${r.wins}</td>
+      <td data-label="L">${r.losses}</td>
+      <td data-label="Win%">${r.win_pct}%</td>
+      <td data-label="Points">${r.points_scored}</td>
+      <td data-label="Avg/Game">${r.avg_points}</td>
+      <td data-label="Diff">${r.point_diff > 0 ? '+' : ''}${r.point_diff}</td>
     </tr>
   `).join('');
 }
