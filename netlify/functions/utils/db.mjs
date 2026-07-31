@@ -45,7 +45,6 @@ export async function ensureSchema(db) {
         created_at TEXT NOT NULL,
         responded_at TEXT
       )`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players(email)`,
     ],
     "write",
   );
@@ -71,11 +70,13 @@ export async function ensureSchema(db) {
         )`,
         "INSERT INTO players (id, name) SELECT id, name FROM players_old",
         "DROP TABLE players_old",
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players(email)",
       ],
       "write",
     );
   }
+
+  // Only safe to add now that `email` is guaranteed to exist (fresh create or migrated above).
+  await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players(email)");
 }
 
 export function fullName(row) {
