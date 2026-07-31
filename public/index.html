@@ -116,6 +116,25 @@
   .locked-note { color: var(--muted); font-size: 0.9rem; }
   .table-scroll { overflow-x: auto; }
 
+  /* Logged-out/in visibility driven by a body class, not inline styles, so the
+     mobile request-page override below can win without a specificity fight. */
+  #authCard { display: block; }
+  #requestsCard { display: none; }
+  #recordForm { display: block; }
+  #recordLocked { display: none; }
+  #logoutBtn { display: none; }
+  body.logged-in #authCard { display: none; }
+  body.logged-in #requestsCard { display: block; }
+  body.logged-in #recordForm { display: block; }
+  body.logged-in #recordLocked { display: none; }
+  body.logged-in #logoutBtn { display: inline-block; }
+  body:not(.logged-in) #recordForm { display: none; }
+  body:not(.logged-in) #recordLocked { display: block; }
+
+  /* Mobile-only nav buttons that trigger the auth forms / request-a-match page. */
+  #navSignupBtn, #navLoginBtn, #navRequestBtn { display: none; }
+  .back-link { display: none; }
+
   @media (max-width: 480px) {
     .row { flex-direction: column; align-items: stretch; }
     .row .field { max-width: 100% !important; min-width: 0; }
@@ -173,6 +192,47 @@
     #historyTable td.muted { flex-basis: 100%; margin-bottom: 2px; }
     #historyTable td:last-child { margin-left: auto; }
   }
+
+  /* Mobile: compact nav buttons replace the inline auth forms / request card,
+     and "Request a match" opens as a full-screen page instead of a section
+     you scroll to. */
+  @media (max-width: 899px) {
+    body:not(.logged-in) #navSignupBtn,
+    body:not(.logged-in) #navLoginBtn {
+      display: inline-block;
+    }
+    body.logged-in #navRequestBtn { display: inline-block; }
+
+    body.logged-in #requestsCard { display: none; }
+    body.logged-in #requestsCard.mobile-page-open {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      overflow-y: auto;
+      margin: 0;
+      border-radius: 0;
+      padding: 20px 16px 64px;
+    }
+    #requestsCard.mobile-page-open .back-link { display: inline-block; margin-bottom: 14px; }
+  }
+
+  /* Desktop: three-column dashboard — requests | leaderboard+history | record. */
+  @media (min-width: 900px) {
+    .wrap { max-width: 1120px; }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr 1fr;
+      grid-template-areas: "requests leaderboard record" "requests history record";
+      align-items: start;
+      gap: 20px;
+    }
+    .dashboard-grid > .card { margin-bottom: 0; }
+    #requestsCard { grid-area: requests; }
+    #leaderboardCard { grid-area: leaderboard; }
+    #historyCard { grid-area: history; }
+    #recordCard { grid-area: record; }
+  }
 </style>
 </head>
 <body>
@@ -184,7 +244,10 @@
     </div>
     <div class="whoami" id="whoami">
       <span id="whoamiGreeting"></span>
-      <button class="secondary small" id="logoutBtn" style="display:none;">Log out</button>
+      <button class="secondary small" id="navSignupBtn">Sign up</button>
+      <button class="secondary small" id="navLoginBtn">Log in</button>
+      <button class="secondary small" id="navRequestBtn">Request a match<span id="requestBadge" class="badge" style="display:none;"></span></button>
+      <button class="secondary small" id="logoutBtn">Log out</button>
     </div>
   </div>
 
@@ -235,7 +298,9 @@
     <div class="msg" id="authMsg"></div>
   </div>
 
-  <div class="card" id="requestsCard" style="display:none;">
+  <div class="dashboard-grid">
+  <div class="card" id="requestsCard">
+    <a href="#" class="back-link" id="closeRequestPageBtn">&larr; Back</a>
     <h2>Request a match</h2>
     <div class="row">
       <div class="field">
@@ -246,7 +311,7 @@
     </div>
     <div class="msg" id="requestMsg"></div>
 
-    <h3>Waiting on you</h3>
+    <h3>Waiting on you <span id="incomingBadge" class="badge" style="display:none;"></span></h3>
     <div id="incomingRequests"><div class="empty">No incoming requests.</div></div>
 
     <h3>Sent by you</h3>
@@ -255,7 +320,7 @@
 
   <div class="card" id="recordCard">
     <h2>Record a match</h2>
-    <div id="recordLocked" class="locked-note" style="display:none;">Log in to record a match.</div>
+    <div id="recordLocked" class="locked-note">Log in to record a match.</div>
     <div id="recordForm">
       <div class="row">
         <div class="field">
@@ -284,7 +349,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="leaderboardCard">
     <h2>Leaderboard</h2>
     <div class="row" style="margin-bottom:14px;">
       <div class="tabs" id="scopeTabs">
@@ -307,7 +372,7 @@
     <div class="empty" id="leaderboardEmpty" style="display:none;">No matches recorded for this period yet.</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="historyCard">
     <h2>Match history</h2>
     <table id="historyTable">
       <thead>
@@ -316,6 +381,7 @@
       <tbody></tbody>
     </table>
     <div class="empty" id="historyEmpty" style="display:none;">No matches yet — record one above.</div>
+  </div>
   </div>
 </div>
 
@@ -414,11 +480,26 @@ async function loadHistory() {
   });
 }
 
+const BASE_TITLE = document.title;
+
+function updateRequestNotifications(incomingCount) {
+  const badgeText = incomingCount > 0 ? String(incomingCount) : '';
+  for (const badge of [el('requestBadge'), el('incomingBadge')]) {
+    badge.textContent = badgeText;
+    badge.style.display = incomingCount > 0 ? 'inline-block' : 'none';
+  }
+  document.title = incomingCount > 0 ? `(${incomingCount}) ${BASE_TITLE}` : BASE_TITLE;
+}
+
 async function loadMatchRequests() {
-  if (!currentPlayer) return;
+  if (!currentPlayer) {
+    updateRequestNotifications(0);
+    return;
+  }
   const requests = await api('/api/match-requests');
   const incoming = requests.filter(r => r.status === 'pending' && r.opponent.id === currentPlayer.id);
   const outgoing = requests.filter(r => r.requester.id === currentPlayer.id && r.status !== 'completed');
+  updateRequestNotifications(incoming.length);
 
   const incomingEl = el('incomingRequests');
   incomingEl.innerHTML = incoming.length ? incoming.map(r => `
@@ -459,23 +540,14 @@ async function loadMatchRequests() {
 
 function renderAuthState() {
   const greeting = el('whoamiGreeting');
-  const logoutBtn = el('logoutBtn');
+  document.body.classList.toggle('logged-in', !!currentPlayer);
   if (currentPlayer) {
     greeting.textContent = `Hi, ${currentPlayer.fullName}`;
     greeting.className = '';
-    logoutBtn.style.display = 'inline-block';
-    el('authCard').style.display = 'none';
-    el('requestsCard').style.display = 'block';
-    el('recordForm').style.display = 'block';
-    el('recordLocked').style.display = 'none';
   } else {
     greeting.textContent = '';
     greeting.className = '';
-    logoutBtn.style.display = 'none';
-    el('authCard').style.display = 'block';
-    el('requestsCard').style.display = 'none';
-    el('recordForm').style.display = 'none';
-    el('recordLocked').style.display = 'block';
+    closeMobileRequestPage();
   }
 }
 
@@ -520,14 +592,47 @@ async function refreshAll() {
   await Promise.all([loadLeaderboard(), loadHistory(), loadMatchRequests()]);
 }
 
+function activateAuthTab(tab) {
+  document.querySelectorAll('#authTabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  el('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+  el('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  el('authMsg').textContent = '';
+  el('authCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 document.querySelectorAll('#authTabs button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#authTabs button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    el('signupForm').style.display = btn.dataset.tab === 'signup' ? 'block' : 'none';
-    el('loginForm').style.display = btn.dataset.tab === 'login' ? 'block' : 'none';
-    el('authMsg').textContent = '';
-  });
+  btn.addEventListener('click', () => activateAuthTab(btn.dataset.tab));
+});
+
+el('navSignupBtn').addEventListener('click', () => activateAuthTab('signup'));
+el('navLoginBtn').addEventListener('click', () => activateAuthTab('login'));
+
+const MOBILE_MQ = window.matchMedia('(max-width: 899px)');
+
+function openMobileRequestPage() {
+  if (!currentPlayer || !MOBILE_MQ.matches) return;
+  el('requestsCard').classList.add('mobile-page-open');
+  if (location.hash !== '#request-match') location.hash = 'request-match';
+  window.scrollTo(0, 0);
+}
+
+function closeMobileRequestPage() {
+  el('requestsCard').classList.remove('mobile-page-open');
+  if (location.hash === '#request-match') history.replaceState(null, '', location.pathname + location.search);
+}
+
+el('navRequestBtn').addEventListener('click', openMobileRequestPage);
+el('closeRequestPageBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  closeMobileRequestPage();
+});
+
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#request-match') {
+    openMobileRequestPage();
+  } else {
+    el('requestsCard').classList.remove('mobile-page-open');
+  }
 });
 
 el('signupForm').addEventListener('submit', async (e) => {
@@ -634,7 +739,20 @@ el('weekSelect').addEventListener('change', loadLeaderboard);
 
 el('playedAt').valueAsDate = new Date();
 
-refreshAll();
+// On mobile, the "Sign up"/"Log in" nav buttons are the entry point, so no
+// form should be pre-shown the way desktop pre-shows the signup tab.
+if (MOBILE_MQ.matches) {
+  document.querySelectorAll('#authTabs button').forEach(b => b.classList.remove('active'));
+  el('signupForm').style.display = 'none';
+  el('loginForm').style.display = 'none';
+}
+
+refreshAll().then(() => {
+  if (location.hash === '#request-match') openMobileRequestPage();
+});
+
+// Lightweight in-app notifications: no push infra, just poll while the tab is open.
+setInterval(loadMatchRequests, 30000);
 </script>
 </body>
 </html>
