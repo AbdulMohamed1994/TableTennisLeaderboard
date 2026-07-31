@@ -23,7 +23,7 @@ export async function ensureSchema(db) {
     [
       `CREATE TABLE IF NOT EXISTS players (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
+        name TEXT UNIQUE NOT NULL,
         surname TEXT,
         email TEXT,
         password_hash TEXT
@@ -49,33 +49,20 @@ export async function ensureSchema(db) {
     "write",
   );
 
-  // Older deployments created `players` with `name TEXT UNIQUE NOT NULL` and no
-  // surname/email/password_hash columns. Rebuild without the per-name UNIQUE
-  // constraint (multiple people can share a first name; email is now the real
-  // identity) while preserving existing ids so match history stays attached.
+  // Older deployments created `players` with only id/name. Add the missing
+  // columns in place with ALTER TABLE ADD COLUMN — no rename/rebuild, since
+  // Turso enforces foreign keys by default and matches/match_requests both
+  // reference this table (a rename-based rebuild trips SQLITE_CONSTRAINT).
   const tableInfo = await db.execute(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'players'",
   );
   const createSql = tableInfo.rows[0]?.sql || "";
-  if (!createSql.includes("surname")) {
-    await db.batch(
-      [
-        "ALTER TABLE players RENAME TO players_old",
-        `CREATE TABLE players (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          surname TEXT,
-          email TEXT,
-          password_hash TEXT
-        )`,
-        "INSERT INTO players (id, name) SELECT id, name FROM players_old",
-        "DROP TABLE players_old",
-      ],
-      "write",
-    );
+  for (const column of ["surname", "email", "password_hash"]) {
+    if (!createSql.includes(column)) {
+      await db.execute(`ALTER TABLE players ADD COLUMN ${column} TEXT`);
+    }
   }
 
-  // Only safe to add now that `email` is guaranteed to exist (fresh create or migrated above).
   await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players(email)");
 }
 
