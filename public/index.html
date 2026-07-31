@@ -44,6 +44,9 @@
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
   .whoami { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; white-space: nowrap; }
+  .greeting-champ { color: var(--accent); font-weight: 700; }
+  .greeting-loser { color: var(--muted); }
+  .greeting-loser b { color: var(--text); }
   .card {
     background: var(--card);
     border: 1px solid var(--card-border);
@@ -119,7 +122,10 @@
       <h1>Office Table Tennis Leaderboard</h1>
       <p class="sub">Standard rules, first to 21 (win by 2). Log matches below and check who's leading.</p>
     </div>
-    <div class="whoami" id="whoami"></div>
+    <div class="whoami" id="whoami">
+      <span id="whoamiGreeting"></span>
+      <button class="secondary small" id="logoutBtn" style="display:none;">Log out</button>
+    </div>
   </div>
 
   <div class="card" id="authCard">
@@ -306,6 +312,7 @@ async function loadLeaderboard() {
   const tbody = document.querySelector('#leaderboardTable tbody');
   const active = board.filter(r => r.played > 0);
   el('leaderboardEmpty').style.display = active.length ? 'none' : 'block';
+  updateChampionGreeting(board);
   tbody.innerHTML = active.map((r, i) => `
     <tr>
       <td class="rank ${i === 0 ? 'champion' : ''}">${i + 1}</td>
@@ -391,26 +398,50 @@ async function loadMatchRequests() {
 }
 
 function renderAuthState() {
-  const whoami = el('whoami');
+  const greeting = el('whoamiGreeting');
+  const logoutBtn = el('logoutBtn');
   if (currentPlayer) {
-    whoami.innerHTML = `<span>Hi, ${escapeHtml(currentPlayer.fullName)}</span><button class="secondary small" id="logoutBtn">Log out</button>`;
-    el('logoutBtn').addEventListener('click', async () => {
-      await api('/api/auth/logout', { method: 'POST' });
-      currentPlayer = null;
-      await afterAuthChange();
-    });
+    greeting.textContent = `Hi, ${currentPlayer.fullName}`;
+    greeting.className = '';
+    logoutBtn.style.display = 'inline-block';
     el('authCard').style.display = 'none';
     el('requestsCard').style.display = 'block';
     el('recordForm').style.display = 'block';
     el('recordLocked').style.display = 'none';
   } else {
-    whoami.innerHTML = '';
+    greeting.textContent = '';
+    greeting.className = '';
+    logoutBtn.style.display = 'none';
     el('authCard').style.display = 'block';
     el('requestsCard').style.display = 'none';
     el('recordForm').style.display = 'none';
     el('recordLocked').style.display = 'block';
   }
 }
+
+// Champion trash-talk: greet whoever tops the currently-viewed leaderboard
+// scope as the champ, everyone else gets ribbed with the champ's name front and center.
+function updateChampionGreeting(board) {
+  if (!currentPlayer) return;
+  const greeting = el('whoamiGreeting');
+  const champion = board.find(r => r.played > 0);
+  if (!champion) {
+    greeting.textContent = `Hi, ${currentPlayer.fullName}`;
+    greeting.className = '';
+  } else if (champion.id === currentPlayer.id) {
+    greeting.textContent = `Welcome Champ, ${currentPlayer.name}!`;
+    greeting.className = 'greeting-champ';
+  } else {
+    greeting.innerHTML = `Loser ${escapeHtml(currentPlayer.name)}. <b>${escapeHtml(champion.full_name)}</b> is the Champ.`;
+    greeting.className = 'greeting-loser';
+  }
+}
+
+el('logoutBtn').addEventListener('click', async () => {
+  await api('/api/auth/logout', { method: 'POST' });
+  currentPlayer = null;
+  await afterAuthChange();
+});
 
 async function afterAuthChange() {
   renderAuthState();
