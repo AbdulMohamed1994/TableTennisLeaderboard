@@ -40,8 +40,10 @@
     padding: 24px 16px 64px;
   }
   .wrap { max-width: 880px; margin: 0 auto; }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
+  .whoami { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; white-space: nowrap; }
   .card {
     background: var(--card);
     border: 1px solid var(--card-border);
@@ -50,10 +52,12 @@
     margin-bottom: 20px;
   }
   .card h2 { margin: 0 0 14px; font-size: 1.1rem; }
+  .card h3 { margin: 18px 0 10px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .card h3:first-of-type { margin-top: 0; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
   .field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
   .field label { font-size: 0.78rem; color: var(--muted); }
-  select, input[type=number], input[type=text], input[type=date] {
+  select, input[type=number], input[type=text], input[type=date], input[type=email], input[type=password] {
     background: var(--input-bg);
     border: 1px solid var(--card-border);
     color: var(--text);
@@ -81,6 +85,7 @@
     font-weight: 500;
   }
   button.danger { background: transparent; color: var(--loss); border: 1px solid var(--loss); padding: 4px 8px; font-size: 0.8rem; font-weight: 500; }
+  button.small { padding: 5px 10px; font-size: 0.8rem; }
   .msg { font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; }
   .msg.error { color: var(--loss); }
   .msg.ok { color: var(--win); }
@@ -92,6 +97,8 @@
   .rank.champion { color: var(--accent); }
   .name { font-weight: 600; }
   .badge { display: inline-block; background: var(--accent-dim); color: var(--accent); font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 8px; }
+  .badge.status-pending { background: var(--accent-dim); color: var(--accent); }
+  .badge.status-accepted { background: rgba(34,197,94,0.15); color: var(--win); }
   .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
   .tabs button { background: transparent; border: 1px solid var(--card-border); color: var(--muted); }
   .tabs button.active { background: var(--accent); color: white; border-color: var(--accent); }
@@ -99,51 +106,116 @@
   .muted { color: var(--muted); }
   .empty { color: var(--muted); font-size: 0.9rem; padding: 8px 0; }
   select#weekSelect { max-width: 220px; }
+  .request-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--card-border); }
+  .request-row:last-child { border-bottom: none; }
+  .request-actions { display: flex; gap: 6px; }
+  .locked-note { color: var(--muted); font-size: 0.9rem; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Office Table Tennis Leaderboard</h1>
-  <p class="sub">Standard rules, first to 21 (win by 2). Log matches below and check who's leading.</p>
-
-  <div class="card">
-    <h2>Add a player</h2>
-    <div class="row">
-      <div class="field">
-        <label for="newPlayerName">Name</label>
-        <input type="text" id="newPlayerName" placeholder="e.g. Priya">
-      </div>
-      <button id="addPlayerBtn">Add player</button>
+  <div class="topbar">
+    <div>
+      <h1>Office Table Tennis Leaderboard</h1>
+      <p class="sub">Standard rules, first to 21 (win by 2). Log matches below and check who's leading.</p>
     </div>
-    <div class="msg" id="playerMsg"></div>
+    <div class="whoami" id="whoami"></div>
   </div>
 
-  <div class="card">
-    <h2>Record a match</h2>
+  <div class="card" id="authCard">
+    <div class="tabs" id="authTabs">
+      <button data-tab="signup" class="active">Sign up</button>
+      <button data-tab="login">Log in</button>
+    </div>
+
+    <form id="signupForm">
+      <div class="row">
+        <div class="field">
+          <label for="signupName">First name</label>
+          <input type="text" id="signupName" required>
+        </div>
+        <div class="field">
+          <label for="signupSurname">Surname</label>
+          <input type="text" id="signupSurname" required>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div class="field">
+          <label for="signupEmail">Email</label>
+          <input type="email" id="signupEmail" required>
+        </div>
+        <div class="field">
+          <label for="signupPassword">Password</label>
+          <input type="password" id="signupPassword" minlength="8" required>
+        </div>
+        <button type="submit">Sign up</button>
+      </div>
+      <p class="locked-note">If your name already appears on the leaderboard, signing up claims that history as yours.</p>
+    </form>
+
+    <form id="loginForm" style="display:none;">
+      <div class="row">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit">Log in</button>
+      </div>
+    </form>
+    <div class="msg" id="authMsg"></div>
+  </div>
+
+  <div class="card" id="requestsCard" style="display:none;">
+    <h2>Request a match</h2>
     <div class="row">
       <div class="field">
-        <label for="playerA">Player A</label>
-        <select id="playerA"></select>
+        <label for="opponentSelect">Challenge</label>
+        <select id="opponentSelect"></select>
       </div>
-      <div class="field" style="max-width:90px;">
-        <label for="scoreA">Score A</label>
-        <input type="number" id="scoreA" min="0" value="21">
-      </div>
-      <div class="field">
-        <label for="playerB">Player B</label>
-        <select id="playerB"></select>
-      </div>
-      <div class="field" style="max-width:90px;">
-        <label for="scoreB">Score B</label>
-        <input type="number" id="scoreB" min="0" value="0">
-      </div>
-      <div class="field" style="max-width:160px;">
-        <label for="playedAt">Date</label>
-        <input type="date" id="playedAt">
-      </div>
-      <button id="recordMatchBtn">Record match</button>
+      <button id="sendRequestBtn">Send request</button>
     </div>
-    <div class="msg" id="matchMsg"></div>
+    <div class="msg" id="requestMsg"></div>
+
+    <h3>Waiting on you</h3>
+    <div id="incomingRequests"><div class="empty">No incoming requests.</div></div>
+
+    <h3>Sent by you</h3>
+    <div id="outgoingRequests"><div class="empty">No outgoing requests.</div></div>
+  </div>
+
+  <div class="card" id="recordCard">
+    <h2>Record a match</h2>
+    <div id="recordLocked" class="locked-note" style="display:none;">Log in to record a match.</div>
+    <div id="recordForm">
+      <div class="row">
+        <div class="field">
+          <label for="playerA">Player A</label>
+          <select id="playerA"></select>
+        </div>
+        <div class="field" style="max-width:90px;">
+          <label for="scoreA">Score A</label>
+          <input type="number" id="scoreA" min="0" value="21">
+        </div>
+        <div class="field">
+          <label for="playerB">Player B</label>
+          <select id="playerB"></select>
+        </div>
+        <div class="field" style="max-width:90px;">
+          <label for="scoreB">Score B</label>
+          <input type="number" id="scoreB" min="0" value="0">
+        </div>
+        <div class="field" style="max-width:160px;">
+          <label for="playedAt">Date</label>
+          <input type="date" id="playedAt">
+        </div>
+        <button id="recordMatchBtn">Record match</button>
+      </div>
+      <div class="msg" id="matchMsg"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -185,26 +257,32 @@
 const el = (id) => document.getElementById(id);
 
 async function api(path, opts) {
-  const res = await fetch(path, opts);
+  const res = await fetch(path, { credentials: 'same-origin', ...opts });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
 
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function displayName(p) {
+  return p.surname ? `${p.name} ${p.surname}` : p.name;
+}
+
 let players = [];
+let currentPlayer = null;
 let currentScope = 'week';
-let currentWeek = null;
 
 function fillPlayerSelects() {
   for (const sel of [el('playerA'), el('playerB')]) {
     const prev = sel.value;
-    sel.innerHTML = players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    sel.innerHTML = players.map(p => `<option value="${p.id}">${escapeHtml(displayName(p))}</option>`).join('');
     if (prev) sel.value = prev;
   }
-}
-
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const opponents = players.filter(p => !currentPlayer || p.id !== currentPlayer.id);
+  el('opponentSelect').innerHTML = opponents.map(p => `<option value="${p.id}">${escapeHtml(displayName(p))}</option>`).join('');
 }
 
 async function loadPlayers() {
@@ -214,12 +292,11 @@ async function loadPlayers() {
 
 async function loadWeeks() {
   const data = await api('/api/weeks');
-  currentWeek = data.current_week;
   const sel = el('weekSelect');
   let weeks = data.weeks;
-  if (!weeks.includes(currentWeek)) weeks = [currentWeek, ...weeks];
-  sel.innerHTML = weeks.map(w => `<option value="${w}">${w}${w === currentWeek ? ' (current)' : ''}</option>`).join('');
-  sel.value = currentWeek;
+  if (!weeks.includes(data.current_week)) weeks = [data.current_week, ...weeks];
+  sel.innerHTML = weeks.map(w => `<option value="${w}">${w}${w === data.current_week ? ' (current)' : ''}</option>`).join('');
+  sel.value = data.current_week;
 }
 
 async function loadLeaderboard() {
@@ -232,7 +309,7 @@ async function loadLeaderboard() {
   tbody.innerHTML = active.map((r, i) => `
     <tr>
       <td class="rank ${i === 0 ? 'champion' : ''}">${i + 1}</td>
-      <td class="name">${escapeHtml(r.name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
+      <td class="name">${escapeHtml(r.full_name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
       <td>${r.played}</td>
       <td>${r.wins}</td>
       <td>${r.losses}</td>
@@ -251,41 +328,182 @@ async function loadHistory() {
   tbody.innerHTML = matches.map(m => `
     <tr>
       <td class="muted">${m.played_at}</td>
-      <td class="name" style="text-align:right;">${escapeHtml(m.player_a.name)}</td>
+      <td class="name" style="text-align:right;">${escapeHtml(displayName(m.player_a))}</td>
       <td class="score-vs">${m.score_a} &ndash; ${m.score_b}</td>
-      <td class="name">${escapeHtml(m.player_b.name)}</td>
-      <td><button class="danger" data-id="${m.id}">Delete</button></td>
+      <td class="name">${escapeHtml(displayName(m.player_b))}</td>
+      <td>${currentPlayer ? `<button class="danger" data-id="${m.id}">Delete</button>` : ''}</td>
     </tr>
   `).join('');
   tbody.querySelectorAll('button.danger').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('Delete this match?')) return;
-      await api('/api/matches/' + btn.dataset.id, { method: 'DELETE' });
-      await refreshAll();
+      try {
+        await api('/api/matches/' + btn.dataset.id, { method: 'DELETE' });
+        await refreshAll();
+      } catch (e) {
+        alert(e.message);
+      }
     });
   });
 }
 
-async function refreshAll() {
-  await Promise.all([loadPlayers(), loadWeeks()]);
-  await Promise.all([loadLeaderboard(), loadHistory()]);
+async function loadMatchRequests() {
+  if (!currentPlayer) return;
+  const requests = await api('/api/match-requests');
+  const incoming = requests.filter(r => r.status === 'pending' && r.opponent.id === currentPlayer.id);
+  const outgoing = requests.filter(r => r.requester.id === currentPlayer.id && r.status !== 'completed');
+
+  const incomingEl = el('incomingRequests');
+  incomingEl.innerHTML = incoming.length ? incoming.map(r => `
+    <div class="request-row">
+      <span>${escapeHtml(r.requester.full_name)} wants a rematch challenge</span>
+      <div class="request-actions">
+        <button class="small" data-id="${r.id}" data-action="accept">Accept</button>
+        <button class="small secondary" data-id="${r.id}" data-action="decline">Decline</button>
+      </div>
+    </div>
+  `).join('') : '<div class="empty">No incoming requests.</div>';
+
+  const outgoingEl = el('outgoingRequests');
+  outgoingEl.innerHTML = outgoing.length ? outgoing.map(r => `
+    <div class="request-row">
+      <span>${escapeHtml(r.opponent.full_name)}
+        <span class="badge status-${r.status}">${r.status}</span>
+      </span>
+      ${r.status === 'pending' ? `<button class="small secondary" data-id="${r.id}" data-action="cancel">Cancel</button>` : ''}
+    </div>
+  `).join('') : '<div class="empty">No outgoing requests.</div>';
+
+  document.querySelectorAll('#requestsCard button[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api(`/api/match-requests/${btn.dataset.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: btn.dataset.action }),
+        });
+        await loadMatchRequests();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  });
 }
 
-el('addPlayerBtn').addEventListener('click', async () => {
-  const name = el('newPlayerName').value.trim();
-  const msg = el('playerMsg');
+function renderAuthState() {
+  const whoami = el('whoami');
+  if (currentPlayer) {
+    whoami.innerHTML = `<span>Hi, ${escapeHtml(currentPlayer.fullName)}</span><button class="secondary small" id="logoutBtn">Log out</button>`;
+    el('logoutBtn').addEventListener('click', async () => {
+      await api('/api/auth/logout', { method: 'POST' });
+      currentPlayer = null;
+      await afterAuthChange();
+    });
+    el('authCard').style.display = 'none';
+    el('requestsCard').style.display = 'block';
+    el('recordForm').style.display = 'block';
+    el('recordLocked').style.display = 'none';
+  } else {
+    whoami.innerHTML = '';
+    el('authCard').style.display = 'block';
+    el('requestsCard').style.display = 'none';
+    el('recordForm').style.display = 'none';
+    el('recordLocked').style.display = 'block';
+  }
+}
+
+async function afterAuthChange() {
+  renderAuthState();
+  fillPlayerSelects();
+  await Promise.all([loadHistory(), loadMatchRequests()]);
+}
+
+async function loadSession() {
+  const data = await api('/api/auth/me');
+  currentPlayer = data.player;
+}
+
+async function refreshAll() {
+  await Promise.all([loadSession(), loadPlayers(), loadWeeks()]);
+  renderAuthState();
+  await Promise.all([loadLeaderboard(), loadHistory(), loadMatchRequests()]);
+}
+
+document.querySelectorAll('#authTabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#authTabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    el('signupForm').style.display = btn.dataset.tab === 'signup' ? 'block' : 'none';
+    el('loginForm').style.display = btn.dataset.tab === 'login' ? 'block' : 'none';
+    el('authMsg').textContent = '';
+  });
+});
+
+el('signupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = el('authMsg');
   msg.className = 'msg';
   msg.textContent = '';
-  if (!name) { msg.className = 'msg error'; msg.textContent = 'Enter a name.'; return; }
   try {
-    await api('/api/players', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-    el('newPlayerName').value = '';
-    msg.className = 'msg ok';
-    msg.textContent = `Added ${name}.`;
-    await loadPlayers();
-  } catch (e) {
+    const player = await api('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: el('signupName').value.trim(),
+        surname: el('signupSurname').value.trim(),
+        email: el('signupEmail').value.trim(),
+        password: el('signupPassword').value,
+      }),
+    });
+    currentPlayer = player;
+    await Promise.all([loadPlayers(), loadLeaderboard()]);
+    await afterAuthChange();
+  } catch (err) {
     msg.className = 'msg error';
-    msg.textContent = e.message;
+    msg.textContent = err.message;
+  }
+});
+
+el('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = el('authMsg');
+  msg.className = 'msg';
+  msg.textContent = '';
+  try {
+    const player = await api('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: el('loginEmail').value.trim(),
+        password: el('loginPassword').value,
+      }),
+    });
+    currentPlayer = player;
+    await afterAuthChange();
+  } catch (err) {
+    msg.className = 'msg error';
+    msg.textContent = err.message;
+  }
+});
+
+el('sendRequestBtn').addEventListener('click', async () => {
+  const msg = el('requestMsg');
+  msg.className = 'msg';
+  msg.textContent = '';
+  const opponentId = parseInt(el('opponentSelect').value, 10);
+  if (!opponentId) { msg.className = 'msg error'; msg.textContent = 'Pick someone to challenge.'; return; }
+  try {
+    await api('/api/match-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opponent_id: opponentId }),
+    });
+    msg.className = 'msg ok';
+    msg.textContent = 'Request sent.';
+    await loadMatchRequests();
+  } catch (err) {
+    msg.className = 'msg error';
+    msg.textContent = err.message;
   }
 });
 
@@ -304,7 +522,7 @@ el('recordMatchBtn').addEventListener('click', async () => {
     await api('/api/matches', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
     msg.className = 'msg ok';
     msg.textContent = 'Match recorded.';
-    await Promise.all([loadWeeks(), loadLeaderboard(), loadHistory()]);
+    await Promise.all([loadWeeks(), loadLeaderboard(), loadHistory(), loadMatchRequests()]);
   } catch (e) {
     msg.className = 'msg error';
     msg.textContent = e.message;

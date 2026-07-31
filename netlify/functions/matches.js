@@ -1,4 +1,13 @@
-import { getClient, ensureSchema, jsonResponse, validateGame, isoWeekKey, todayIso } from "./utils/db.mjs";
+import {
+  getClient,
+  ensureSchema,
+  jsonResponse,
+  validateGame,
+  isoWeekKey,
+  todayIso,
+  getSession,
+  fullName,
+} from "./utils/db.mjs";
 
 export default async (req) => {
   const db = getClient();
@@ -9,29 +18,36 @@ export default async (req) => {
     const week = url.searchParams.get("week");
     const result = await db.execute(`
       SELECT m.id, m.score_a, m.score_b, m.played_at,
-             pa.id AS player_a_id, pa.name AS player_a_name,
-             pb.id AS player_b_id, pb.name AS player_b_name
+             pa.id AS player_a_id, pa.name AS player_a_name, pa.surname AS player_a_surname,
+             pb.id AS player_b_id, pb.name AS player_b_name, pb.surname AS player_b_surname
       FROM matches m
       JOIN players pa ON pa.id = m.player_a_id
       JOIN players pb ON pb.id = m.player_b_id
       ORDER BY m.played_at DESC, m.id DESC
     `);
     const matches = result.rows
-      .map((r) => ({
-        id: r.id,
-        player_a: { id: r.player_a_id, name: r.player_a_name },
-        player_b: { id: r.player_b_id, name: r.player_b_name },
-        score_a: r.score_a,
-        score_b: r.score_b,
-        played_at: r.played_at,
-        week: isoWeekKey(r.played_at),
-        winner: r.score_a > r.score_b ? r.player_a_name : r.player_b_name,
-      }))
+      .map((r) => {
+        const playerA = { id: r.player_a_id, name: r.player_a_name, surname: r.player_a_surname };
+        const playerB = { id: r.player_b_id, name: r.player_b_name, surname: r.player_b_surname };
+        return {
+          id: r.id,
+          player_a: playerA,
+          player_b: playerB,
+          score_a: r.score_a,
+          score_b: r.score_b,
+          played_at: r.played_at,
+          week: isoWeekKey(r.played_at),
+          winner: r.score_a > r.score_b ? fullName(playerA) : fullName(playerB),
+        };
+      })
       .filter((m) => !week || m.week === week);
     return jsonResponse(matches);
   }
 
   if (req.method === "POST") {
+    const session = getSession(req);
+    if (!session) return jsonResponse({ error: "Please log in to record a match." }, 401);
+
     let body;
     try {
       body = await req.json();
@@ -73,6 +89,15 @@ export default async (req) => {
             VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [playerAId, playerBId, scoreA, scoreB, playedAt, new Date().toISOString()],
     });
+
+    // Clear any accepted challenge between these two players now that it's been played.
+    await db.execute({
+      sql: `UPDATE match_requests SET status = 'completed', responded_at = ?
+            WHERE status = 'accepted'
+              AND ((requester_id = ? AND opponent_id = ?) OR (requester_id = ? AND opponent_id = ?))`,
+      args: [new Date().toISOString(), playerAId, playerBId, playerBId, playerAId],
+    });
+
     return jsonResponse({ id: result.rows[0].id }, 201);
   }
 

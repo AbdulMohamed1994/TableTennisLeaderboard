@@ -1,7 +1,10 @@
 import { createClient } from "@libsql/client";
+import jwt from "jsonwebtoken";
 
 const WIN_SCORE = 21;
 const WIN_MARGIN = 2;
+const SESSION_COOKIE = "session";
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 let client;
 
@@ -20,7 +23,10 @@ export async function ensureSchema(db) {
     [
       `CREATE TABLE IF NOT EXISTS players (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL
+        name TEXT NOT NULL,
+        surname TEXT,
+        email TEXT,
+        password_hash TEXT
       )`,
       `CREATE TABLE IF NOT EXISTS matches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,9 +37,88 @@ export async function ensureSchema(db) {
         played_at TEXT NOT NULL,
         created_at TEXT NOT NULL
       )`,
+      `CREATE TABLE IF NOT EXISTS match_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        requester_id INTEGER NOT NULL REFERENCES players(id),
+        opponent_id INTEGER NOT NULL REFERENCES players(id),
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        responded_at TEXT
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players(email)`,
     ],
     "write",
   );
+
+  // Older deployments created `players` with `name TEXT UNIQUE NOT NULL` and no
+  // surname/email/password_hash columns. Rebuild without the per-name UNIQUE
+  // constraint (multiple people can share a first name; email is now the real
+  // identity) while preserving existing ids so match history stays attached.
+  const tableInfo = await db.execute(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'players'",
+  );
+  const createSql = tableInfo.rows[0]?.sql || "";
+  if (!createSql.includes("surname")) {
+    await db.batch(
+      [
+        "ALTER TABLE players RENAME TO players_old",
+        `CREATE TABLE players (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          surname TEXT,
+          email TEXT,
+          password_hash TEXT
+        )`,
+        "INSERT INTO players (id, name) SELECT id, name FROM players_old",
+        "DROP TABLE players_old",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players(email)",
+      ],
+      "write",
+    );
+  }
+}
+
+export function fullName(row) {
+  return row.surname ? `${row.name} ${row.surname}` : row.name;
+}
+
+export function signSession(player) {
+  return jwt.sign(
+    { id: player.id, name: player.name, surname: player.surname || null },
+    process.env.SESSION_SECRET,
+    { expiresIn: SESSION_MAX_AGE_SECONDS },
+  );
+}
+
+export function parseCookies(req) {
+  const header = req.headers.get("cookie") || "";
+  const cookies = {};
+  header.split(";").forEach((pair) => {
+    const idx = pair.indexOf("=");
+    if (idx === -1) return;
+    const key = pair.slice(0, idx).trim();
+    const val = pair.slice(idx + 1).trim();
+    if (key) cookies[key] = decodeURIComponent(val);
+  });
+  return cookies;
+}
+
+export function getSession(req) {
+  const token = parseCookies(req)[SESSION_COOKIE];
+  if (!token) return null;
+  try {
+    return jwt.verify(token, process.env.SESSION_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+export function sessionCookieHeader(token) {
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}`;
+}
+
+export function clearSessionCookieHeader() {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
 export function validateGame(scoreA, scoreB) {
@@ -49,10 +134,10 @@ export function validateGame(scoreA, scoreB) {
   return null;
 }
 
-export function jsonResponse(data, status = 200) {
+export function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
@@ -72,4 +157,14 @@ export function isoWeekKey(dateStr) {
 
 export function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function validateSignup({ name, surname, email, password }) {
+  if (!name || !name.trim()) return "First name is required.";
+  if (!surname || !surname.trim()) return "Surname is required.";
+  if (!email || !EMAIL_RE.test(email.trim())) return "A valid email is required.";
+  if (!password || password.length < 8) return "Password must be at least 8 characters.";
+  return null;
 }

@@ -1,6 +1,9 @@
-import { getClient, ensureSchema, jsonResponse } from "./utils/db.mjs";
+import { getClient, ensureSchema, jsonResponse, getSession } from "./utils/db.mjs";
 
 export default async (req, context) => {
+  const session = getSession(req);
+  if (!session) return jsonResponse({ error: "Please log in to delete a match." }, 401);
+
   const db = getClient();
   await ensureSchema(db);
 

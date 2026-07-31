@@ -1,4 +1,4 @@
-import { getClient, ensureSchema, jsonResponse, isoWeekKey } from "./utils/db.mjs";
+import { getClient, ensureSchema, jsonResponse, isoWeekKey, fullName } from "./utils/db.mjs";
 
 export default async (req) => {
   const db = getClient();
@@ -6,7 +6,7 @@ export default async (req) => {
   const url = new URL(req.url);
   const week = url.searchParams.get("week");
 
-  const playersResult = await db.execute("SELECT id, name FROM players");
+  const playersResult = await db.execute("SELECT id, name, surname FROM players");
   const matchesResult = await db.execute(
     "SELECT player_a_id, player_b_id, score_a, score_b, played_at FROM matches",
   );
@@ -16,6 +16,7 @@ export default async (req) => {
     stats.set(p.id, {
       id: p.id,
       name: p.name,
+      full_name: fullName(p),
       played: 0,
       wins: 0,
       losses: 0,
