@@ -215,6 +215,10 @@
       padding: 20px 16px 64px;
     }
     #requestsCard.mobile-page-open .back-link { display: inline-block; margin-bottom: 14px; }
+
+    /* The nav buttons above are the trigger on mobile; no need for a second,
+       redundant pair of tabs inside the card once it's revealed. */
+    body:not(.logged-in) #authTabs { display: none; }
   }
 
   /* Desktop: three-column dashboard — requests | leaderboard+history | record. */
