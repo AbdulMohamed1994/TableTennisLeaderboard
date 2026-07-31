@@ -1,0 +1,8 @@
+{
+  "name": "ping-pong-leaderboard",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@libsql/client": "^0.17.4"
+  }
+}

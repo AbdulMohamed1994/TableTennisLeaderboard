@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Table Tennis Leaderboard</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #f97316;
+    --accent-dim: #7c2d12;
+    --win: #22c55e;
+    --loss: #ef4444;
+    --input-bg: #0f172a;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --card-border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #ea580c;
+      --accent-dim: #ffedd5;
+      --win: #16a34a;
+      --loss: #dc2626;
+      --input-bg: #f1f5f9;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { margin: 0 0 14px; font-size: 1.1rem; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
+  .field label { font-size: 0.78rem; color: var(--muted); }
+  select, input[type=number], input[type=text], input[type=date] {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 0.95rem;
+    width: 100%;
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover { filter: brightness(1.05); }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    font-weight: 500;
+  }
+  button.danger { background: transparent; color: var(--loss); border: 1px solid var(--loss); padding: 4px 8px; font-size: 0.8rem; font-weight: 500; }
+  .msg { font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; }
+  .msg.error { color: var(--loss); }
+  .msg.ok { color: var(--win); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--card-border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  tr:last-child td { border-bottom: none; }
+  .rank { font-weight: 700; width: 28px; }
+  .rank.champion { color: var(--accent); }
+  .name { font-weight: 600; }
+  .badge { display: inline-block; background: var(--accent-dim); color: var(--accent); font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 8px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tabs button { background: transparent; border: 1px solid var(--card-border); color: var(--muted); }
+  .tabs button.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .score-vs { text-align: center; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .empty { color: var(--muted); font-size: 0.9rem; padding: 8px 0; }
+  select#weekSelect { max-width: 220px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Office Table Tennis Leaderboard</h1>
+  <p class="sub">Standard rules, first to 21 (win by 2). Log matches below and check who's leading.</p>
+
+  <div class="card">
+    <h2>Add a player</h2>
+    <div class="row">
+      <div class="field">
+        <label for="newPlayerName">Name</label>
+        <input type="text" id="newPlayerName" placeholder="e.g. Priya">
+      </div>
+      <button id="addPlayerBtn">Add player</button>
+    </div>
+    <div class="msg" id="playerMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Record a match</h2>
+    <div class="row">
+      <div class="field">
+        <label for="playerA">Player A</label>
+        <select id="playerA"></select>
+      </div>
+      <div class="field" style="max-width:90px;">
+        <label for="scoreA">Score A</label>
+        <input type="number" id="scoreA" min="0" value="21">
+      </div>
+      <div class="field">
+        <label for="playerB">Player B</label>
+        <select id="playerB"></select>
+      </div>
+      <div class="field" style="max-width:90px;">
+        <label for="scoreB">Score B</label>
+        <input type="number" id="scoreB" min="0" value="0">
+      </div>
+      <div class="field" style="max-width:160px;">
+        <label for="playedAt">Date</label>
+        <input type="date" id="playedAt">
+      </div>
+      <button id="recordMatchBtn">Record match</button>
+    </div>
+    <div class="msg" id="matchMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Leaderboard</h2>
+    <div class="row" style="margin-bottom:14px;">
+      <div class="tabs" id="scopeTabs">
+        <button data-scope="week" class="active">This week</button>
+        <button data-scope="all">All time</button>
+      </div>
+      <div class="field" id="weekPickerField" style="max-width:220px;">
+        <label for="weekSelect">Week</label>
+        <select id="weekSelect"></select>
+      </div>
+    </div>
+    <table id="leaderboardTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Player</th><th>Played</th><th>W</th><th>L</th><th>Win%</th><th>Points</th><th>Avg/Game</th><th>Diff</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="leaderboardEmpty" style="display:none;">No matches recorded for this period yet.</div>
+  </div>
+
+  <div class="card">
+    <h2>Match history</h2>
+    <table id="historyTable">
+      <thead>
+        <tr><th>Date</th><th></th><th></th><th></th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty" id="historyEmpty" style="display:none;">No matches yet — record one above.</div>
+  </div>
+</div>
+
+<script>
+const el = (id) => document.getElementById(id);
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+let players = [];
+let currentScope = 'week';
+let currentWeek = null;
+
+function fillPlayerSelects() {
+  for (const sel of [el('playerA'), el('playerB')]) {
+    const prev = sel.value;
+    sel.innerHTML = players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    if (prev) sel.value = prev;
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadPlayers() {
+  players = await api('/api/players');
+  fillPlayerSelects();
+}
+
+async function loadWeeks() {
+  const data = await api('/api/weeks');
+  currentWeek = data.current_week;
+  const sel = el('weekSelect');
+  let weeks = data.weeks;
+  if (!weeks.includes(currentWeek)) weeks = [currentWeek, ...weeks];
+  sel.innerHTML = weeks.map(w => `<option value="${w}">${w}${w === currentWeek ? ' (current)' : ''}</option>`).join('');
+  sel.value = currentWeek;
+}
+
+async function loadLeaderboard() {
+  const week = currentScope === 'week' ? el('weekSelect').value : null;
+  const qs = week ? `?week=${encodeURIComponent(week)}` : '';
+  const board = await api('/api/leaderboard' + qs);
+  const tbody = document.querySelector('#leaderboardTable tbody');
+  const active = board.filter(r => r.played > 0);
+  el('leaderboardEmpty').style.display = active.length ? 'none' : 'block';
+  tbody.innerHTML = active.map((r, i) => `
+    <tr>
+      <td class="rank ${i === 0 ? 'champion' : ''}">${i + 1}</td>
+      <td class="name">${escapeHtml(r.name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
+      <td>${r.played}</td>
+      <td>${r.wins}</td>
+      <td>${r.losses}</td>
+      <td>${r.win_pct}%</td>
+      <td>${r.points_scored}</td>
+      <td>${r.avg_points}</td>
+      <td>${r.point_diff > 0 ? '+' : ''}${r.point_diff}</td>
+    </tr>
+  `).join('');
+}
+
+async function loadHistory() {
+  const matches = await api('/api/matches');
+  const tbody = document.querySelector('#historyTable tbody');
+  el('historyEmpty').style.display = matches.length ? 'none' : 'block';
+  tbody.innerHTML = matches.map(m => `
+    <tr>
+      <td class="muted">${m.played_at}</td>
+      <td class="name" style="text-align:right;">${escapeHtml(m.player_a.name)}</td>
+      <td class="score-vs">${m.score_a} &ndash; ${m.score_b}</td>
+      <td class="name">${escapeHtml(m.player_b.name)}</td>
+      <td><button class="danger" data-id="${m.id}">Delete</button></td>
+    </tr>
+  `).join('');
+  tbody.querySelectorAll('button.danger').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this match?')) return;
+      await api('/api/matches/' + btn.dataset.id, { method: 'DELETE' });
+      await refreshAll();
+    });
+  });
+}
+
+async function refreshAll() {
+  await Promise.all([loadPlayers(), loadWeeks()]);
+  await Promise.all([loadLeaderboard(), loadHistory()]);
+}
+
+el('addPlayerBtn').addEventListener('click', async () => {
+  const name = el('newPlayerName').value.trim();
+  const msg = el('playerMsg');
+  msg.className = 'msg';
+  msg.textContent = '';
+  if (!name) { msg.className = 'msg error'; msg.textContent = 'Enter a name.'; return; }
+  try {
+    await api('/api/players', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
+    el('newPlayerName').value = '';
+    msg.className = 'msg ok';
+    msg.textContent = `Added ${name}.`;
+    await loadPlayers();
+  } catch (e) {
+    msg.className = 'msg error';
+    msg.textContent = e.message;
+  }
+});
+
+el('recordMatchBtn').addEventListener('click', async () => {
+  const msg = el('matchMsg');
+  msg.className = 'msg';
+  msg.textContent = '';
+  const payload = {
+    player_a_id: parseInt(el('playerA').value, 10),
+    player_b_id: parseInt(el('playerB').value, 10),
+    score_a: parseInt(el('scoreA').value, 10),
+    score_b: parseInt(el('scoreB').value, 10),
+    played_at: el('playedAt').value || undefined,
+  };
+  try {
+    await api('/api/matches', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    msg.className = 'msg ok';
+    msg.textContent = 'Match recorded.';
+    await Promise.all([loadWeeks(), loadLeaderboard(), loadHistory()]);
+  } catch (e) {
+    msg.className = 'msg error';
+    msg.textContent = e.message;
+  }
+});
+
+document.querySelectorAll('#scopeTabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#scopeTabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentScope = btn.dataset.scope;
+    el('weekPickerField').style.display = currentScope === 'week' ? 'flex' : 'none';
+    loadLeaderboard();
+  });
+});
+
+el('weekSelect').addEventListener('change', loadLeaderboard);
+
+el('playedAt').valueAsDate = new Date();
+
+refreshAll();
+</script>
+</body>
+</html>
