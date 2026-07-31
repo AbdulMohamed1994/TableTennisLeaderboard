@@ -137,10 +137,10 @@
   button.danger:hover { background: var(--loss-dim); }
   button.small { padding: 5px 10px; font-size: 0.8rem; }
   button.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px; line-height: 0; }
-  button.icon-btn svg { display: block; }
-  .icon-sun { display: none; }
-  :root[data-theme="dark"] .icon-sun { display: inline-flex; }
-  :root[data-theme="dark"] .icon-moon { display: none; }
+  button.icon-btn svg { display: none; }
+  button.icon-btn svg.icon-moon { display: block; }
+  :root[data-theme="dark"] button.icon-btn svg.icon-sun { display: block; }
+  :root[data-theme="dark"] button.icon-btn svg.icon-moon { display: none; }
   a.back-link { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
   a.back-link:hover { text-decoration: underline; }
   .msg { font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; font-weight: 500; }
@@ -281,22 +281,18 @@
     body:not(.logged-in) #authTabs { display: none; }
   }
 
-  /* Desktop: three-column dashboard — requests | leaderboard+history | record. */
+  /* Desktop: two-column dashboard — leaderboard+history (2/3) | record+request (1/3). */
   @media (min-width: 900px) {
     body { padding-left: 16px; padding-right: 16px; }
     .wrap { max-width: min(1440px, 96vw); }
     .dashboard-grid {
       display: grid;
-      grid-template-columns: 1fr 1.6fr 1fr;
-      grid-template-areas: "requests leaderboard record" "requests history record";
+      grid-template-columns: 2fr 1fr;
       align-items: start;
       gap: 20px;
     }
-    .dashboard-grid > .card { margin-bottom: 0; }
-    #requestsCard { grid-area: requests; }
-    #leaderboardCard { grid-area: leaderboard; }
-    #historyCard { grid-area: history; }
-    #recordCard { grid-area: record; }
+    .col-main, .col-side { display: flex; flex-direction: column; gap: 20px; }
+    .dashboard-grid .card { margin-bottom: 0; }
   }
 </style>
 </head>
@@ -368,59 +364,7 @@
   </div>
 
   <div class="dashboard-grid">
-  <div class="card" id="requestsCard">
-    <a href="#" class="back-link" id="closeRequestPageBtn">&larr; Back</a>
-    <h2>Request a match</h2>
-    <div class="row">
-      <div class="field">
-        <label for="opponentSelect">Challenge</label>
-        <select id="opponentSelect"></select>
-      </div>
-      <button id="sendRequestBtn">Send request</button>
-    </div>
-    <div class="msg" id="requestMsg"></div>
-
-    <h3>Waiting on you <span id="incomingBadge" class="badge" style="display:none;"></span></h3>
-    <div id="incomingRequests"><div class="empty">No incoming requests.</div></div>
-
-    <h3>Ready to record <span id="readyBadge" class="badge" style="display:none;"></span></h3>
-    <div id="readyRequests"><div class="empty">Nothing to record yet.</div></div>
-
-    <h3>Sent by you</h3>
-    <div id="outgoingRequests"><div class="empty">No outgoing requests.</div></div>
-  </div>
-
-  <div class="card" id="recordCard">
-    <h2>Record a match</h2>
-    <div id="recordLocked" class="locked-note">Log in to record a match.</div>
-    <div id="recordForm">
-      <div class="row">
-        <div class="field">
-          <label for="playerA">Player A</label>
-          <select id="playerA"></select>
-        </div>
-        <div class="field" style="max-width:90px;">
-          <label for="scoreA">Score A</label>
-          <input type="number" id="scoreA" min="0" value="21">
-        </div>
-        <div class="field">
-          <label for="playerB">Player B</label>
-          <select id="playerB"></select>
-        </div>
-        <div class="field" style="max-width:90px;">
-          <label for="scoreB">Score B</label>
-          <input type="number" id="scoreB" min="0" value="0">
-        </div>
-        <div class="field" style="max-width:160px;">
-          <label for="playedAt">Date</label>
-          <input type="date" id="playedAt">
-        </div>
-        <button id="recordMatchBtn">Record match</button>
-      </div>
-      <div class="msg" id="matchMsg"></div>
-    </div>
-  </div>
-
+  <div class="col-main">
   <div class="card" id="leaderboardCard">
     <h2>Leaderboard</h2>
     <div class="row" style="margin-bottom:14px;">
@@ -453,6 +397,62 @@
       <tbody></tbody>
     </table>
     <div class="empty" id="historyEmpty" style="display:none;">No matches yet — record one above.</div>
+  </div>
+  </div>
+
+  <div class="col-side">
+  <div class="card" id="recordCard">
+    <h2>Record a match</h2>
+    <div id="recordLocked" class="locked-note">Log in to record a match.</div>
+    <div id="recordForm">
+      <div class="row">
+        <div class="field">
+          <label for="playerA">Player A</label>
+          <select id="playerA"></select>
+        </div>
+        <div class="field" style="max-width:90px;">
+          <label for="scoreA">Score A</label>
+          <input type="number" id="scoreA" min="0" value="21">
+        </div>
+        <div class="field">
+          <label for="playerB">Player B</label>
+          <select id="playerB"></select>
+        </div>
+        <div class="field" style="max-width:90px;">
+          <label for="scoreB">Score B</label>
+          <input type="number" id="scoreB" min="0" value="0">
+        </div>
+        <div class="field" style="max-width:160px;">
+          <label for="playedAt">Date</label>
+          <input type="date" id="playedAt">
+        </div>
+        <button id="recordMatchBtn">Record match</button>
+      </div>
+      <div class="msg" id="matchMsg"></div>
+    </div>
+  </div>
+
+  <div class="card" id="requestsCard">
+    <a href="#" class="back-link" id="closeRequestPageBtn">&larr; Back</a>
+    <h2>Request a match</h2>
+    <div class="row">
+      <div class="field">
+        <label for="opponentSelect">Challenge</label>
+        <select id="opponentSelect"></select>
+      </div>
+      <button id="sendRequestBtn">Send request</button>
+    </div>
+    <div class="msg" id="requestMsg"></div>
+
+    <h3>Waiting on you <span id="incomingBadge" class="badge" style="display:none;"></span></h3>
+    <div id="incomingRequests"><div class="empty">No incoming requests.</div></div>
+
+    <h3>Ready to record <span id="readyBadge" class="badge" style="display:none;"></span></h3>
+    <div id="readyRequests"><div class="empty">Nothing to record yet.</div></div>
+
+    <h3>Sent by you</h3>
+    <div id="outgoingRequests"><div class="empty">No outgoing requests.</div></div>
+  </div>
   </div>
   </div>
 </div>
