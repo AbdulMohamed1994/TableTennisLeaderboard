@@ -506,7 +506,7 @@ el('logoutBtn').addEventListener('click', async () => {
 async function afterAuthChange() {
   renderAuthState();
   fillPlayerSelects();
-  await Promise.all([loadHistory(), loadMatchRequests()]);
+  await Promise.all([loadLeaderboard(), loadHistory(), loadMatchRequests()]);
 }
 
 async function loadSession() {
@@ -547,7 +547,7 @@ el('signupForm').addEventListener('submit', async (e) => {
       }),
     });
     currentPlayer = player;
-    await Promise.all([loadPlayers(), loadLeaderboard()]);
+    await loadPlayers();
     await afterAuthChange();
   } catch (err) {
     msg.className = 'msg error';
