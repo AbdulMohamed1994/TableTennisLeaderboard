@@ -6,111 +6,137 @@
 <title>Office Table Tennis Leaderboard</title>
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --card-border: #334155;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --accent: #f97316;
-    --accent-dim: #7c2d12;
-    --win: #22c55e;
-    --loss: #ef4444;
-    --input-bg: #0f172a;
-  }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --card-border: #e2e8f0;
-      --text: #0f172a;
-      --muted: #64748b;
-      --accent: #ea580c;
-      --accent-dim: #ffedd5;
-      --win: #16a34a;
-      --loss: #dc2626;
-      --input-bg: #f1f5f9;
-    }
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --card-border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --accent: #c2410c;
+    --accent-fill: #ea580c;
+    --accent-fill-hover: #c2410c;
+    --accent-dim: #fff1e6;
+    --win: #15803d;
+    --win-dim: #dcfce7;
+    --loss: #b91c1c;
+    --loss-dim: #fee2e2;
+    --neutral-dim: #f3f4f6;
+    --input-bg: #ffffff;
+    --ring: rgba(194, 65, 12, 0.25);
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.05);
   }
   * { box-sizing: border-box; }
   html, body { max-width: 100%; overflow-x: hidden; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
     background: var(--bg);
     color: var(--text);
-    padding: 24px 16px 64px;
+    line-height: 1.5;
+    padding: 32px 20px 72px;
   }
   .wrap { max-width: 880px; margin: 0 auto; }
-  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-  h1 { font-size: 1.6rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
-  .whoami { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; flex-wrap: wrap; }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+  h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  .whoami { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; flex-wrap: wrap; padding-top: 4px; }
   .greeting-champ { color: var(--accent); font-weight: 700; }
   .greeting-loser { color: var(--muted); }
   .greeting-loser b { color: var(--text); }
   .card {
     background: var(--card);
     border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 14px;
+    padding: 22px 24px;
     margin-bottom: 20px;
+    box-shadow: var(--shadow-md);
   }
-  .card h2 { margin: 0 0 14px; font-size: 1.1rem; }
-  .card h3 { margin: 18px 0 10px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .card h2 {
+    margin: 0 0 16px;
+    padding-bottom: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .card h3 { margin: 20px 0 10px; font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .card h3:first-of-type { margin-top: 0; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
-  .field label { font-size: 0.78rem; color: var(--muted); }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 120px; flex: 1; }
+  .field label { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
   select, input[type=number], input[type=text], input[type=date], input[type=email], input[type=password] {
     background: var(--input-bg);
     border: 1px solid var(--card-border);
     color: var(--text);
-    border-radius: 8px;
-    padding: 9px 10px;
+    border-radius: 10px;
+    padding: 10px 12px;
     font-size: 0.95rem;
     width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  select:focus, input:focus {
+    outline: none;
+    border-color: var(--accent-fill);
+    box-shadow: 0 0 0 3px var(--ring);
   }
   button {
-    background: var(--accent);
+    background: var(--accent-fill);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 10px 16px;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
   }
-  button:hover { filter: brightness(1.05); }
+  button:hover { background: var(--accent-fill-hover); }
+  button:active { transform: scale(0.98); }
+  button:focus-visible { outline: 2px solid var(--accent-fill); outline-offset: 2px; }
   button.secondary {
-    background: transparent;
+    background: var(--card);
     border: 1px solid var(--card-border);
     color: var(--text);
-    font-weight: 500;
+    font-weight: 600;
+    box-shadow: none;
   }
-  button.danger { background: transparent; color: var(--loss); border: 1px solid var(--loss); padding: 4px 8px; font-size: 0.8rem; font-weight: 500; }
+  button.secondary:hover { background: var(--neutral-dim); }
+  button.danger { background: var(--card); color: var(--loss); border: 1px solid #fca5a5; padding: 4px 8px; font-size: 0.8rem; font-weight: 600; box-shadow: none; }
+  button.danger:hover { background: var(--loss-dim); }
   button.small { padding: 5px 10px; font-size: 0.8rem; }
-  .msg { font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; }
+  a.back-link { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+  a.back-link:hover { text-decoration: underline; }
+  .msg { font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; font-weight: 500; }
   .msg.error { color: var(--loss); }
   .msg.ok { color: var(--win); }
   table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--card-border); }
-  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--card-border); }
+  th { color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
   tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--neutral-dim); }
+  #leaderboardTable tbody tr:first-child { background: var(--accent-dim); }
+  #leaderboardTable tbody tr:first-child:hover { background: var(--accent-dim); }
   .rank { font-weight: 700; width: 28px; }
   .rank.champion { color: var(--accent); }
   .name { font-weight: 600; }
-  .badge { display: inline-block; background: var(--accent-dim); color: var(--accent); font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 8px; }
+  .badge { display: inline-block; background: var(--accent-dim); color: var(--accent); font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-left: 8px; }
   .badge.status-pending { background: var(--accent-dim); color: var(--accent); }
-  .badge.status-accepted { background: rgba(34,197,94,0.15); color: var(--win); }
+  .badge.status-accepted { background: var(--win-dim); color: var(--win); }
+  .badge.status-declined { background: var(--loss-dim); color: var(--loss); }
+  .badge.status-cancelled { background: var(--neutral-dim); color: var(--muted); }
   .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .tabs button { background: transparent; border: 1px solid var(--card-border); color: var(--muted); }
-  .tabs button.active { background: var(--accent); color: white; border-color: var(--accent); }
-  .score-vs { text-align: center; font-variant-numeric: tabular-nums; }
+  .tabs button { background: var(--card); border: 1px solid var(--card-border); color: var(--muted); box-shadow: none; }
+  .tabs button:hover { background: var(--neutral-dim); }
+  .tabs button.active { background: var(--accent-fill); color: white; border-color: var(--accent-fill); }
+  .tabs button.active:hover { background: var(--accent-fill-hover); }
+  .score-vs { text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
   .muted { color: var(--muted); }
   .empty { color: var(--muted); font-size: 0.9rem; padding: 8px 0; }
   select#weekSelect { max-width: 220px; }
-  .request-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--card-border); }
+  .request-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
   .request-row:last-child { border-bottom: none; }
   .request-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .locked-note { color: var(--muted); font-size: 0.9rem; }
