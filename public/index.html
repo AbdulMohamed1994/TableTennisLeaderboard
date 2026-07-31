@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Office Table Tennis Leaderboard</title>
+<script>
+(function () {
+  var stored = localStorage.getItem('theme');
+  var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
 <style>
   :root {
     --bg: #f7f7f8;
@@ -25,6 +32,26 @@
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
     --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.05);
   }
+  :root[data-theme="dark"] {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-border: #334155;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #fb923c;
+    --accent-fill: #f97316;
+    --accent-fill-hover: #fb923c;
+    --accent-dim: #47240f;
+    --win: #4ade80;
+    --win-dim: #14532d;
+    --loss: #f87171;
+    --loss-dim: #7f1d1d;
+    --neutral-dim: #334155;
+    --input-bg: #0f172a;
+    --ring: rgba(251, 146, 60, 0.35);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.4), 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
   * { box-sizing: border-box; }
   html, body { max-width: 100%; overflow-x: hidden; }
   body {
@@ -34,6 +61,7 @@
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
+    transition: background-color 0.2s ease, color 0.2s ease;
     padding: 32px 20px 72px;
   }
   .wrap { max-width: 880px; margin: 0 auto; }
@@ -51,6 +79,7 @@
     padding: 22px 24px;
     margin-bottom: 20px;
     box-shadow: var(--shadow-md);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
   }
   .card h2 {
     margin: 0 0 16px;
@@ -107,6 +136,11 @@
   button.danger { background: var(--card); color: var(--loss); border: 1px solid #fca5a5; padding: 4px 8px; font-size: 0.8rem; font-weight: 600; box-shadow: none; }
   button.danger:hover { background: var(--loss-dim); }
   button.small { padding: 5px 10px; font-size: 0.8rem; }
+  button.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px; line-height: 0; }
+  button.icon-btn svg { display: block; }
+  .icon-sun { display: none; }
+  :root[data-theme="dark"] .icon-sun { display: inline-flex; }
+  :root[data-theme="dark"] .icon-moon { display: none; }
   a.back-link { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
   a.back-link:hover { text-decoration: underline; }
   .msg { font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; font-weight: 500; }
@@ -249,7 +283,8 @@
 
   /* Desktop: three-column dashboard — requests | leaderboard+history | record. */
   @media (min-width: 900px) {
-    .wrap { max-width: 1120px; }
+    body { padding-left: 16px; padding-right: 16px; }
+    .wrap { max-width: min(1440px, 96vw); }
     .dashboard-grid {
       display: grid;
       grid-template-columns: 1fr 1.6fr 1fr;
@@ -278,6 +313,10 @@
       <button class="secondary small" id="navLoginBtn">Log in</button>
       <button class="secondary small" id="navRequestBtn">Request a match<span id="requestBadge" class="badge" style="display:none;"></span></button>
       <button class="secondary small" id="logoutBtn">Log out</button>
+      <button class="secondary icon-btn" id="themeToggle" aria-label="Toggle color theme" title="Toggle color theme">
+        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
     </div>
   </div>
 
@@ -687,6 +726,12 @@ document.querySelectorAll('#authTabs button').forEach(btn => {
 
 el('navSignupBtn').addEventListener('click', () => activateAuthTab('signup'));
 el('navLoginBtn').addEventListener('click', () => activateAuthTab('login'));
+
+el('themeToggle').addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+});
 
 const MOBILE_MQ = window.matchMedia('(max-width: 899px)');
 
