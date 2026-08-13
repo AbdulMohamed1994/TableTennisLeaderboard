@@ -380,7 +380,7 @@
     <table id="leaderboardTable">
       <thead>
         <tr>
-          <th>#</th><th>Player</th><th>Played</th><th>W</th><th>L</th><th>Win%</th><th>Points</th><th>Avg/Game</th><th>Diff</th>
+          <th>#</th><th>Player</th><th>Elo</th><th>Elo &Delta;</th><th>Played</th><th>W</th><th>L</th><th>Win%</th><th>Points</th><th>Avg/Game</th><th>Diff</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -515,6 +515,8 @@ async function loadLeaderboard() {
     <tr>
       <td class="rank ${i === 0 ? 'champion' : ''}" data-label="#">${i + 1}</td>
       <td class="name" data-label="Player">${escapeHtml(r.full_name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
+      <td data-label="Elo">${r.elo}</td>
+      <td data-label="Elo &Delta;">${r.elo_change > 0 ? '+' : ''}${r.elo_change}</td>
       <td data-label="Played">${r.played}</td>
       <td data-label="W">${r.wins}</td>
       <td data-label="L">${r.losses}</td>
