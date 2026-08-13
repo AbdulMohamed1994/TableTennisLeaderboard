@@ -1,7 +1,8 @@
 import { getClient, ensureSchema, jsonResponse, isoWeekKey, fullName } from "./utils/db.mjs";
 
 const STARTING_ELO = 1500;
-const K_FACTOR = 32;
+const K_FACTOR = 40;
+const MIN_GAMES_TO_CONFIRM = 20;
 
 function applyElo(elo, aId, bId, aWon) {
   const ra = elo.get(aId);
@@ -10,6 +11,13 @@ function applyElo(elo, aId, bId, aWon) {
   const scoreA = aWon ? 1 : 0;
   elo.set(aId, ra + K_FACTOR * (scoreA - expectedA));
   elo.set(bId, rb + K_FACTOR * (1 - scoreA - (1 - expectedA)));
+}
+
+function titleForElo(elo) {
+  if (elo >= 2100) return "Grandmaster";
+  if (elo >= 1800) return "Master";
+  if (elo < 1000) return "Shitter";
+  return null;
 }
 
 export default async (req) => {
@@ -37,6 +45,7 @@ export default async (req) => {
       losses: 0,
       points_scored: 0,
       points_conceded: 0,
+      games_total: 0,
     });
     elo.set(p.id, STARTING_ELO);
   }
@@ -45,7 +54,9 @@ export default async (req) => {
   // the player's FULL match history (in order) so "current Elo" reflects
   // their real standing today regardless of which week is being viewed.
   // "Elo change" is scoped to the selected week (or all-time) by snapshotting
-  // the rating just before and just after that window.
+  // the rating just before and just after that window. games_total tracks
+  // lifetime games (unscoped) so a rating can be flagged "unconfirmed"
+  // regardless of which week someone happens to be looking at.
   for (const m of matchesResult.rows) {
     const a = stats.get(m.player_a_id);
     const b = stats.get(m.player_b_id);
@@ -58,6 +69,8 @@ export default async (req) => {
     }
 
     applyElo(elo, a.id, b.id, m.score_a > m.score_b);
+    a.games_total += 1;
+    b.games_total += 1;
 
     if (inScope) {
       eloAfterScope.set(a.id, elo.get(a.id));
@@ -86,27 +99,39 @@ export default async (req) => {
     const currentElo = elo.get(row.id);
     const before = eloBeforeScope.has(row.id) ? eloBeforeScope.get(row.id) : currentElo;
     const after = eloAfterScope.has(row.id) ? eloAfterScope.get(row.id) : currentElo;
+    const eloChangeRaw = after - before;
     return {
       ...row,
       point_diff,
       win_pct,
       avg_points,
       elo: Math.round(currentElo),
-      elo_change: Math.round(after - before),
+      elo_change: Math.round(eloChangeRaw),
+      elo_confirmed: row.games_total >= MIN_GAMES_TO_CONFIRM,
+      title: titleForElo(currentElo),
       _eloRaw: currentElo,
+      _eloChangeRaw: eloChangeRaw,
     };
   });
 
-  board.sort(
-    (x, y) =>
-      y._eloRaw - x._eloRaw ||
+  // All-time view ranks by overall Elo; a specific week ranks by that week's
+  // Elo movement, so a lower-rated player's standout week can outrank a
+  // high-rated player's quiet one.
+  board.sort((x, y) => {
+    const primary = week ? y._eloChangeRaw - x._eloChangeRaw : y._eloRaw - x._eloRaw;
+    return (
+      primary ||
       y.wins - x.wins ||
       y.point_diff - x.point_diff ||
       y.points_scored - x.points_scored ||
-      x.name.localeCompare(y.name),
-  );
+      x.name.localeCompare(y.name)
+    );
+  });
 
-  for (const row of board) delete row._eloRaw;
+  for (const row of board) {
+    delete row._eloRaw;
+    delete row._eloChangeRaw;
+  }
 
   return jsonResponse(board);
 };

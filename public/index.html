@@ -157,6 +157,7 @@
   .rank.champion { color: var(--accent); }
   .name { font-weight: 600; }
   .badge { display: inline-block; background: var(--accent-dim); color: var(--accent); font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-left: 8px; }
+  .elo-unconfirmed { display: inline-block; margin-left: 4px; color: var(--muted); font-weight: 700; cursor: help; }
   .badge.status-pending { background: var(--accent-dim); color: var(--accent); }
   .badge.status-accepted { background: var(--win-dim); color: var(--win); }
   .badge.status-declined { background: var(--loss-dim); color: var(--loss); }
@@ -514,8 +515,8 @@ async function loadLeaderboard() {
   tbody.innerHTML = active.map((r, i) => `
     <tr>
       <td class="rank ${i === 0 ? 'champion' : ''}" data-label="#">${i + 1}</td>
-      <td class="name" data-label="Player">${escapeHtml(r.full_name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}</td>
-      <td data-label="Elo">${r.elo}</td>
+      <td class="name" data-label="Player">${escapeHtml(r.full_name)}${i === 0 ? '<span class="badge">Champion</span>' : ''}${r.title ? `<span class="badge">${r.title}</span>` : ''}</td>
+      <td data-label="Elo">${r.elo}${r.elo_confirmed ? '' : '<span class="elo-unconfirmed" title="Not enough games to ratify rating, rating unconfirmed">?</span>'}</td>
       <td data-label="Elo &Delta;">${r.elo_change > 0 ? '+' : ''}${r.elo_change}</td>
       <td data-label="Played">${r.played}</td>
       <td data-label="W">${r.wins}</td>
